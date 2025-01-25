@@ -1,0 +1,6 @@
+#Libraries that this project requires
+google-cloud-storage
+boto3
+google-auth
+requests
+pytest

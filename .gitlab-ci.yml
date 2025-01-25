@@ -1,0 +1,37 @@
+image: alpine:latest
+
+stages:
+  - sync
+
+variables:
+  GCS_SERVICE_ACCOUNT_JSON: $GCS_SERVICE_ACCOUNT_JSON  # GCS Service Account JSON 
+  OTC_ACCESS_KEY: $OTC_ACCESS_KEY  # OTC Access Key
+  OTC_SECRET_KEY: $OTC_SECRET_KEY  # OTC Secret Key
+  OTC_ENDPOINT: $OTC_ENDPOINT  # OTC Endpoint 
+
+sync_gcs_to_otc:
+  stage: sync
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  before_script:
+    # Install necessary dependencies: rclone, python3 and py3-pip
+    - apk add --no-cache rclone python3 py3-pip
+    # Create the directory for rclone config file
+    - mkdir -p /root/.config/rclone
+    # Write the GCS service account JSON to a file
+    - echo "$GCS_SERVICE_ACCOUNT_JSON" > /root/gcs-service-account.json
+    # Set up the rclone config file
+    - echo "[gcs]" > /root/.config/rclone/rclone.conf
+    - echo "type = google cloud storage" >> /root/.config/rclone/rclone.conf
+    - echo "service_account_file = /root/gcs-service-account.json" >> /root/.config/rclone/rclone.conf
+    - echo "[otc]" >> /root/.config/rclone/rclone.conf
+    - echo "type = s3" >> /root/.config/rclone/rclone.conf
+    - echo "provider = Other" >> /root/.config/rclone/rclone.conf
+    - echo "access_key_id = ${OTC_ACCESS_KEY}" >> /root/.config/rclone/rclone.conf
+    - echo "secret_access_key = ${OTC_SECRET_KEY}" >> /root/.config/rclone/rclone.conf
+    - echo "endpoint = ${OTC_ENDPOINT}" >> /root/.config/rclone/rclone.conf
+  script:
+    # Output the contents of the rclone config file to the job log
+    - cat /root/.config/rclone/rclone.conf
+    # Run the rclone copy command
+    - rclone copy gcs:adr-anhalt otc:obs-12345-10-5500-planet/fusiondata --checksum --transfers 10 --verbose --progress
