@@ -1,78 +1,56 @@
-# gcs-otc-data-stream
+## GCS-to-OTC Data Synchronization Script
 
-# 📌 Introduction
-This tool copies FUSION data from a GCS (Google Cloud Storage) bucket to an OTC (Open Telekom Cloud) bucket.
+This repository contains a CI/CD pipeline script designed to automate the transfer of data from a Google Cloud Storage (GCS)  bucket to an Open Telekom Cloud (OTC) or CreoDias bucket using rclone. The pipeline runs on a schedule and is designed for seamless integration within GitLab CI/CD.
 
-# 📝 Pre-requisites
+**Key Features**
 
-1. 📄 GCS credentials (as a json credentials file)
-2. 🔑 OTC credentials (access key, secret key, endpoint and bucket name)
- 
-# Saving credentials as Variables in Gitlab CI/CD
+-   **Automated Data Transfer**:
+    -   Transfers data between cloud platforms using `rclone`, ensuring compatibility and reliability.
+-   **CI/CD Integration**:
+    -   Designed as a GitLab CI/CD pipeline to execute recurring data transfers.
+-   **Platform-Agnostic Configuration**:
+    -   Supports both OTC and CreoDias endpoints, configured dynamically based on environment variables.
+-   **Parallel Transfers**:
+    -   Optimized for faster data transfers using `--transfers` and `--checksum` flags
 
-## Step 1: Store the GCS service account JSON file as a CI/CD environment variable
+**Pipeline Overview**
 
-After downloading the GCS credentials.json file from Google Cloud Platform, convert the content of the file to a single-line string in your terminal:
+The pipeline is defined in a `.yml` file and includes the following key components:
 
-```bash
-cat /path/to/your-service-account.json | jq -c . > single-line.json
-```
-
-## Step 2: Add the Single-Line JSON to GitLab CI/CD Variables
-
-1. In GitLab, navigate to Settings > CI/CD > Variables.
-2. Add a new variable named 'GCS_SERVICE_ACCOUNT_JSON', and paste the content of of 'single-line.json' into it.
-3. Save the new Variable.
-
-## Step 3: Add the client's OTC storage credentials to GitLab CI/CD Variables
-
-1. In GitLab, navigate to Settings > CI/CD > Variables.
-2. Add a new variable named 'OTC_ACCESS_KEY', and paste the access key credentials into it.
-3. Repeat this step for the 'OTC_ENDPOINT', and 'OTC_SECRET_KEY'.
-
-# 🔧 Usage
-
-For adding additional clients to the pipeline, each client would need their own 'remote' in the rclone config file.
-
-## Edit the 'before_script' section of the .gitlab-ci.yml file
-
-```bash
-before_script:
-    # Install necessary dependencies: rclone, python3 and py3-pip
-    - apk add --no-cache rclone python3 py3-pip
-    # Create the directory for rclone config file
-    - mkdir -p /root/.config/rclone
-    # Write the GCS service account JSON to a file
-    - echo "$GCS_SERVICE_ACCOUNT_JSON" > /root/gcs-service-account.json
-    # Set up the rclone config file and create a GCS remote and OTC remote for Client 1
-    - echo "[gcs]" > /root/.config/rclone/rclone.conf
-    - echo "type = google cloud storage" >> /root/.config/rclone/rclone.conf
-    - echo "service_account_file = /root/gcs-service-account.json" >> /root/.config/rclone/rclone.conf
-    - echo "[otc]" >> /root/.config/rclone/rclone.conf
-    - echo "type = s3" >> /root/.config/rclone/rclone.conf
-    - echo "provider = Other" >> /root/.config/rclone/rclone.conf
-    - echo "access_key_id = ${OTC_ACCESS_KEY}" >> /root/.config/rclone/rclone.conf
-    - echo "secret_access_key = ${OTC_SECRET_KEY}" >> /root/.config/rclone/rclone.conf
-    - echo "endpoint = ${OTC_ENDPOINT}" >> /root/.config/rclone/rclone.conf
-
-    # Setup  OTC remote for Client 2
-    - echo "[otc-client2]" >> /root/.config/rclone/rclone.conf
-    - echo "type = s3" >> /root/.config/rclone/rclone.conf
-    - echo "provider = Other" >> /root/.config/rclone/rclone.conf
-    - echo "access_key_id = ${OTC2_ACCESS_KEY}" >> /root/.config/rclone/rclone.conf
-    - echo "secret_access_key = ${OTC2_SECRET_KEY}" >> /root/.config/rclone/rclone.conf
-    - echo "endpoint = ${OTC2_ENDPOINT}" >> /root/.config/rclone/rclone.conf
+1.  **Image**:
     
-script:
-    # Output the contents of the rclone config file to the job log
-    - cat /root/.config/rclone/rclone.conf
+    -   Utilizes the lightweight **Alpine Linux** image to minimize build times.
+    -   Installs dependencies like `rclone` and `python3` at runtime.
+2.  **Stages**:
     
-    # Run the rclone copy command for Client 1
-    - rclone copy gcs:gaf-sachsen-anhalt otc:obs-30824-10-5500-planet/fusiondata --checksum --transfers 10 --verbose --progress
+    -   Single `sync` stage to handle the data transfer.
+3.  **Environment Variables**:
     
-    # Run the rclone copy command for Client 2
-    - rclone copy gcs:your-gcs-bucket otc-client2:client2-obs-bucket --checksum --transfers 10 --verbose --progress
-```
-The above example for Client2 assumes the bucket for Client1 and Client2 live in the same GCS project; in which case, the service account credentials
-file would apply to both cases. If a client's GCS bucket doesn't live in 'planet-services-prod', then a new credentials.json would need to be created, and saved as a 
-new Variable in GitLb CI/CD.
+    -   **`GCS_SERVICE_ACCOUNT_JSON`**: JSON credentials for GCS.
+    -   **`OTC_ACCESS_KEY`**: Access key for OTC.
+    -   **`OTC_SECRET_KEY`**: Secret key for OTC.
+    -   **`OTC_ENDPOINT`**: Endpoint for the OTC or CreoDias S3 bucket.
+4.  **Dynamic Configuration**:
+    
+    -   Creates an `rclone` configuration file at runtime using the provided environment variables.
+5.  **Transfer Logic**:
+    
+    -   Runs the `rclone copy` command to transfer data from GCS to OTC/CreoDias with checksum verification and parallel transfers.
+
+**Usage**
+### **1. Setup Environment Variables**
+
+Before running the pipeline, ensure the following environment variables are set in GitLab CI/CD:
+
+-   **`GCS_SERVICE_ACCOUNT_JSON`**: Contents of the GCS service account JSON file.
+-   **`OTC_ACCESS_KEY`**: OTC access key.
+-   **`OTC_SECRET_KEY`**: OTC secret key.
+-   **`OTC_ENDPOINT`**: S3-compatible endpoint for OTC or CreoDias.
+
+### **2. Configure the Pipeline**
+
+Include the `.yml` file in your GitLab project. The pipeline is triggered on a scheduled basis, defined in the GitLab CI/CD settings.
+
+**Acknowledgments**
+
+This script utilizes rclone, a powerful cross-cloud synchronization tool, to facilitate seamless data transfer between GCS and OTC or CreoDias.
