@@ -34,4 +34,4 @@ sync_gcs_to_otc:
     # Output the contents of the rclone config file to the job log
     - cat /root/.config/rclone/rclone.conf
     # Run the rclone copy command
-    - rclone copy gcs:adr-anhalt otc:obs-12345-10-5500-planet/fusiondata --checksum --transfers 10 --verbose --progress
+    - rclone copy gcs:<gcs_bucket_name> otc:<otc_bucket_name> --checksum --transfers 10 --verbose --progress
